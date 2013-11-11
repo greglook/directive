@@ -1,13 +1,18 @@
-# directive
+Directive
+=========
 
-A Clojure library designed to ... well, that part is up to you.
+A simple DSL for building command-line interfaces with trees of subcommands.
+This library wraps the `org.clojure/tools.cli` library for option parsing.
 
 ## Usage
 
-FIXME
+```clojure
+(require '[mvxcvi.directive :refer [command execute]])
+
+; ...
+```
 
 ## License
 
-Copyright © 2013 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+This is free and unencumbered software released into the public domain.
+See the UNLICENSE file for more information.
