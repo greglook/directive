@@ -3,6 +3,27 @@
             [mvxcvi.directive :refer [command execute]]))
 
 
+(deftest misusage
+  (is (thrown? IllegalArgumentException
+               (eval '(mvxcvi.directive/command
+                        "foo" "desc" :not-valid)) ))
+  (is (thrown? IllegalArgumentException
+               (eval '(mvxcvi.directive/command
+                        "foo" "desc"
+                        (init identity)
+                        (init [opts] nil)))))
+  (is (thrown? IllegalArgumentException
+               (eval '(mvxcvi.directive/command
+                        "foo" "desc"
+                        (action vector)
+                        (action [opts args] nil)))))
+  (is (thrown? IllegalArgumentException
+               (eval '(mvxcvi.directive/command
+                        "foo" "desc"
+                        (action vector)
+                        (command "bar" "desc"))))))
+
+
 (def test-commands
   (command "test [global opts] <command> [command args]"
     "Test command-line tool description."
@@ -25,7 +46,7 @@
       (command "bar"
         "Bar desc."
 
-        (action [opts args] [:test-foo-bar opts])))
+        (action [opts args] [:test-foo-bar opts args])))
 
     (command "baz [opts]"
       "Baz command description."
@@ -43,22 +64,12 @@
   (is (= 2 (count (:commands test-commands)))))
 
 
-(deftest misusage
-  (is (thrown? IllegalArgumentException
-               (eval '(mvxcvi.directive/command
-                        "foo" "desc" :not-valid)) ))
-  (is (thrown? IllegalArgumentException
-               (eval '(mvxcvi.directive/command
-                        "foo" "desc"
-                        (init identity)
-                        (init [opts] nil)))))
-  (is (thrown? IllegalArgumentException
-               (eval '(mvxcvi.directive/command
-                        "foo" "desc"
-                        (action vector)
-                        (action [opts args] nil)))))
-  (is (thrown? IllegalArgumentException
-               (eval '(mvxcvi.directive/command
-                        "foo" "desc"
-                        (action vector)
-                        (command "bar" "desc"))))))
+(deftest command-execution
+  (let [foo-help (with-out-str (execute test-commands ["help" "foo"]))
+        usage (first (clojure.string/split foo-help #"\n"))]
+    (is (= "Usage: test foo <arg>" usage)))
+  (let [[kw opts args] (execute test-commands ["foo" "--pretty" "bar" "arg1" "--opt2" "arg3"])]
+    (is (= :test-foo-bar kw))
+    (is (:pretty opts))
+    (is (not (:verbose opts)))
+    (is (= ["arg1" "--opt2" "arg3"] args))))
