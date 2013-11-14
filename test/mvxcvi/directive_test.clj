@@ -73,3 +73,11 @@
     (is (:pretty opts))
     (is (not (:verbose opts)))
     (is (= ["arg1" "--opt2" "arg3"] args))))
+
+
+(deftest erroneous-action-execution
+  (with-out-str
+    (are [args] (false? (execute test-commands args))
+         []
+         ["thimble" "excelsior"]
+         ["--verbose" "foo" "--pretty" "invalid-arg" "bar"])))

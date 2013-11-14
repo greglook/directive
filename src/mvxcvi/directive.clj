@@ -4,6 +4,18 @@
     [clojure.tools.cli :refer [cli]]))
 
 
+;; UTILITY FUNCTIONS
+
+(defn fail
+  "Indicates a failure has occurred."
+  ([] false)
+  ([msg]
+   (binding [*out* *err*]
+     (println msg))
+   false))
+
+
+
 ;; COMMAND DEFINITION
 
 ; Command nodes look like this:
@@ -114,7 +126,7 @@
         (parse-command-args usage opts (:specs cmd) command-args)
         ; Map subcommand to actual command map.
         subcommand (and subcommand
-                        (some #(and (= (:name %) subcommand) %)
+                        (some #(when (= (:name %) subcommand) %)
                               subcommands))]
     [banner opts action-args subcommand subcommand-args]))
 
@@ -139,7 +151,7 @@
   "Parses a sequence of arguments using a command map. The action function
   associated with a given leaf command will be called with a merged options map
   and any remaining arguments. Returns true on a successful run, false on
-  error, or whatever the result of the command action is."
+  failure, or whatever the result of the command action is."
   ([cmd args]
    (execute cmd {} args))
 
@@ -162,8 +174,7 @@
        (if subcommand
          ; Recur on selected subcommand.
          (if-not (empty? action-args)
-           (throw (IllegalArgumentException.
-                    (str "Unparsed arguments before command: " action-args)))
+           (fail (str "Unparsed arguments before command: " action-args))
            (recur subcommand branch opts subcommand-args))
          ; Act on current command, either to print help or execute the action.
          (execute-action usage (:action cmd) opts action-args))))))
