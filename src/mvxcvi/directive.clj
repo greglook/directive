@@ -69,7 +69,7 @@
     (when-not (every? list? more)
       (throw (IllegalArgumentException.
                (str "Non-list elements in '" cmd-name "' command definition: "
-                    (filter (complement list?) more)))))
+                    (remove list? more)))))
     (when (> (count init-elements) 1)
       (throw (IllegalArgumentException.
                (str "Multiple `init` elements in '" cmd-name
@@ -141,7 +141,7 @@
         (action opts args)
 
         :else
-        (do (when-not (empty? args)
+        (do (when (seq args)
               (println "Unrecognized arguments:" (string/join " " args) "\n"))
             (println usage)
             false)))
