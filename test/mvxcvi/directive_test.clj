@@ -37,18 +37,20 @@
     (command "foo arg"
       "Foo command description."
 
-      [nil "--pretty" "Formats the info over multiple lines for easier viewing."
-       :default false]
-
       (init [opts] (assoc opts :foo true))
 
       (command "bar"
         "Bar desc."
 
+        ["-x" "--extra VAL" "Sets an extra option"]
+
         (action [opts args] [:test-foo-bar opts args])))
 
     (command "baz [opts]"
       "Baz command description."
+
+      [nil "--pretty" "Formats the info over multiple lines for easier viewing."
+       :default false]
 
       (action vector))))
 
@@ -66,10 +68,14 @@
 (deftest command-execution
   (let [foo-help (with-out-str (execute test-commands ["help" "foo"]))]
     (is (re-find #"^Usage: test foo arg" foo-help)))
-  (let [[kw opts args] (execute test-commands ["foo" "bar" "help"])]
+  (let [[kw opts args] (execute test-commands ["foo" "bar" "-x" "Zoo" "help"])]
     (is (= :test-foo-bar kw))
     (is (true? (:foo opts)))
-    (is (= ["help"] args))))
+    (is (= "Zoo" (:extra opts)))
+    (is (= ["help"] args)))
+  (let [[opts args] (execute test-commands ["baz" "--pretty" "another arg"])]
+    (is (true? (:pretty opts)))
+    (is (= ["another arg"] args))))
 
 
 (deftest erroneous-action-execution
