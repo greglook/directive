@@ -1,7 +1,7 @@
 (ns mvxcvi.directive
   (:require
-    [clojure.string :as string]
-    [clojure.tools.cli :refer [cli]]))
+    [clojure.string :as str]
+    [clojure.tools.cli :as cli]))
 
 
 ;; UTILITY FUNCTIONS
@@ -14,6 +14,20 @@
      (println msg))
    false))
 
+
+(defn- usage-str
+  [branch cmd summary]
+  (let [{:keys [usage desc commands]} cmd]
+    (str "Usage: " (str/join " " branch) " " usage "\n\n"
+         desc
+         (when summary
+           (str "\n\n" summary))
+         (when (seq commands)
+           (str "\n\n Subcommand   Description\n"
+                    " ----------   -----------\n"
+                (->> commands
+                     (map #(format " %10s   %s" (:name %) (:desc %)))
+                     (str/join \newline)))))))
 
 
 ;; COMMAND DEFINITION
@@ -29,7 +43,7 @@
  :commands [{:name ...} ...]}
 
 
-(defn- make-element-fn
+(defn- element-fn
   "Resolves an element as a function body or symbolic reference."
   [[element & body]]
   (when element
@@ -41,16 +55,16 @@
 (defn- make-command
   "Constructs a command node map from the given elements."
   [cmd-name usage desc specs init-element action-element command-elements]
-  (let [cond-assoc (fn [coll [k v]] (if (and k v) (assoc coll k v) coll))
-        nonempty-vec (fn [xs] (and (seq xs) (vec xs)))]
-    (reduce cond-assoc
-            {:name cmd-name
-             :usage usage
-             :desc desc}
-            [[:specs    (nonempty-vec specs)]
-             [:init     (make-element-fn init-element)]
-             [:action   (make-element-fn action-element)]
-             [:commands (nonempty-vec command-elements)]])))
+  (->>
+    {:name cmd-name
+     :usage usage
+     :desc desc
+     :specs (vec specs)
+     :init (element-fn init-element)
+     :action (element-fn action-element)
+     :commands (vec command-elements)}
+    (remove (comp nil? second))
+    (into {})))
 
 
 (defmacro command
@@ -60,7 +74,7 @@
   tree of commands. This map can be used to interpret and take actions specified
   by a sequence of arguments using the `execute` function."
   [usage desc & more]
-  (let [[cmd-name usage] (string/split usage #" " 2)
+  (let [[cmd-name usage] (str/split usage #" " 2)
         [specs more]     (split-with vector? more)
         elements         (group-by first (filter list? more))
         init-elements    (elements 'init)
@@ -91,60 +105,31 @@
 
 ;; COMMAND EXECUTION
 
-(defn- usage-banner
-  [branch cmd]
-  (let [{:keys [usage desc commands]} cmd]
-    (str "Usage: " (string/join " " branch) " " usage "\n\n" desc
-         (when (seq commands)
-           (str "\n\n Subcommand   Description\n"
-                    " ----------   -----------\n"
-                (->> commands
-                     (map #(format " %10s   %s" (:name %) (:desc %)))
-                     (string/join "\n")))))))
-
-
 (defn- parse-command-args
-  [usage opts specs args]
-  (if specs
-    ; Parse arguments with command specs and merge opts.
-    (let [[command-opts action-args banner]
-         (apply cli args usage specs)
-         opts (merge opts command-opts (when (:help opts) {:help true}))]
-      [banner opts action-args])
-    [usage opts args]))
-
-
-(defn- parse-opts
-  [usage cmd opts args]
-  (let [subcommands (:commands cmd)
-        subcommand-names (apply hash-set (map :name subcommands))
-        ; Test for a subcommand invocation in the argument list.
-        [command-args [subcommand & subcommand-args]]
-        (split-with (complement subcommand-names) args)
-        ; Parse command args with option specs.
-        [banner opts action-args]
-        (parse-command-args usage opts (:specs cmd) command-args)
-        ; Map subcommand to actual command map.
-        subcommand (and subcommand
-                        (some #(when (= (:name %) subcommand) %)
-                              subcommands))]
-    [banner opts action-args subcommand subcommand-args]))
+  [opts specs args]
+  (if-not (empty? specs)
+    (update-in
+      (cli/parse-opts args specs :in-order true)
+      [:options] (partial merge opts))
+    {:options opts
+     :arguments args}))
 
 
 (defn- execute-action
   [usage action opts args]
-  (cond (:help opts)
-        (do (println usage)
-            true)
+  (cond
+    (:help opts)
+    (do (println usage) true)
 
-        action
-        (action opts args)
+    action
+    (action opts args)
 
-        :else
-        (do (when (seq args)
-              (println "Unrecognized arguments:" (string/join " " args) "\n"))
-            (println usage)
-            false)))
+    :else
+    (fail
+      (str
+        (when (seq args)
+          (println "Unrecognized arguments:" (str/join " " args) "\n"))
+        usage))))
 
 
 (defn execute
@@ -159,22 +144,21 @@
    (execute cmd [] opts args))
 
   ([cmd branch opts args]
-   (if (some #{"help"} args)
-     ; Recur with :help set in opts and the "help" argument removed.
-     (recur cmd branch
-            (assoc opts :help true)
-            (filter #(not= "help" %) args))
-     ; Parse arguments, update options and find subcommands.
-     (let [branch (conj branch (:name cmd))
-           usage (usage-banner branch cmd)
-           [usage opts action-args subcommand subcommand-args]
-           (parse-opts usage cmd opts args)
-           opts ((or (:init cmd) identity) opts)]
-       ;(clojure.pprint/pprint {:branch branch, :opts opts, :action-args action-args, :subcommand subcommand, :subcommand-args subcommand-args})
-       (if subcommand
-         ; Recur on selected subcommand.
-         (if-not (empty? action-args)
-           (fail (str "Unparsed arguments before command: " action-args))
-           (recur subcommand branch opts subcommand-args))
-         ; Act on current command, either to print help or execute the action.
-         (execute-action usage (:action cmd) opts action-args))))))
+   (let [{:keys [options arguments summary errors]}
+         (parse-command-args opts (:specs cmd) args)]
+     (cond
+       errors
+       (fail (str/join \newline errors))
+
+       (and (empty? branch) (= "help" (first args)))
+       (recur cmd branch
+              (assoc options :help true)
+              (next args))
+
+       :else
+       (let [branch (conj branch (:name cmd))
+             usage (usage-str branch cmd summary)
+             opts ((or (:init cmd) identity) opts)]
+         (if-let [subcommand (first (filter #(= (first args) (:name %)) (:commands cmd)))]
+           (recur subcommand branch opts (next args))
+           (execute-action usage (:action cmd) opts args)))))))

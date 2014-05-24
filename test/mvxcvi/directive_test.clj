@@ -1,6 +1,7 @@
 (ns mvxcvi.directive-test
-  (:require [clojure.test :refer :all]
-            [mvxcvi.directive :refer [command execute]]))
+  (:require
+    [clojure.test :refer :all]
+    [mvxcvi.directive :refer [command execute]]))
 
 
 (deftest misusage
@@ -25,21 +26,19 @@
 
 
 (def test-commands
-  (command "test [global opts] <command> [command args]"
+  (command "test [global opts] command [command args]"
     "Test command-line tool description."
 
-    ["-v" "--verbose" "Show extra debugging messages."
-     :flag true :default false]
-    ["-h" "--help" "Show usage information."
-     :flag true :default false]
+    ["-v" "--verbose" "Show extra debugging messages."]
+    ["-h" "--help" "Show usage information."]
 
     (init identity)
 
-    (command "foo <arg>"
+    (command "foo arg"
       "Foo command description."
 
-      ["--pretty" "Formats the info over multiple lines for easier viewing."
-       :flag true :default false]
+      [nil "--pretty" "Formats the info over multiple lines for easier viewing."
+       :default false]
 
       (init [opts] (assoc opts :foo true))
 
@@ -56,7 +55,7 @@
 
 (deftest check-command-properties
   (is (= "test" (:name test-commands)))
-  (is (= "[global opts] <command> [command args]" (:usage test-commands)))
+  (is (= "[global opts] command [command args]" (:usage test-commands)))
   (is (= "Test command-line tool description." (:desc test-commands)))
   (is (= 2 (count (:specs test-commands))))
   (is (every? vector? (:specs test-commands)))
@@ -65,19 +64,19 @@
 
 
 (deftest command-execution
-  (let [foo-help (with-out-str (execute test-commands ["help" "foo"]))
-        usage (first (clojure.string/split foo-help #"\n"))]
-    (is (= "Usage: test foo <arg>" usage)))
-  (let [[kw opts args] (execute test-commands ["foo" "--pretty" "bar" "arg1" "--opt2" "arg3"])]
+  (let [foo-help (with-out-str (execute test-commands ["help" "foo"]))]
+    (is (re-find #"^Usage: test foo arg" foo-help)))
+  (let [[kw opts args] (execute test-commands ["foo" "bar" "help"])]
     (is (= :test-foo-bar kw))
-    (is (:pretty opts))
-    (is (not (:verbose opts)))
-    (is (= ["arg1" "--opt2" "arg3"] args))))
+    (is (true? (:foo opts)))
+    (is (= ["help"] args))))
 
 
 (deftest erroneous-action-execution
   (with-out-str
-    (are [args] (false? (execute test-commands args))
-         []
-         ["thimble" "excelsior"]
-         ["--verbose" "foo" "--pretty" "invalid-arg" "bar"])))
+    (binding [*err* *out*]
+      (are [args] (false? (execute test-commands args))
+           []
+           ["--not-an-opt" "brazzle"]
+           ["thimble" "excelsior"]
+           ["--verbose" "foo" "--pretty" "invalid-arg" "bar"]))))
