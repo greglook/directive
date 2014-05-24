@@ -1,4 +1,4 @@
-(defproject mvxcvi/directive "0.4.0"
+(defproject mvxcvi/directive "0.4.1"
   :description "Clojure library to allow declarative command-line interface construction."
   :url "https://github.com/greglook/directive"
   :license {:name "Public Domain"

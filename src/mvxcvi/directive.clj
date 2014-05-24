@@ -8,11 +8,10 @@
 
 (defn fail
   "Indicates a failure has occurred."
-  ([] false)
-  ([msg]
-   (binding [*out* *err*]
-     (println msg))
-   false))
+  [msg]
+  (binding [*out* *err*]
+    (println msg))
+  false)
 
 
 (defn- usage-str
@@ -137,28 +136,28 @@
   associated with a given leaf command will be called with a merged options map
   and any remaining arguments. Returns true on a successful run, false on
   failure, or whatever the result of the command action is."
-  ([cmd args]
-   (execute cmd {} args))
+  ([cmd arguments]
+   (execute cmd {} arguments))
 
-  ([cmd opts args]
-   (execute cmd [] opts args))
+  ([cmd options arguments]
+   (execute cmd [] options arguments))
 
-  ([cmd branch opts args]
+  ([cmd branch options arguments]
    (let [{:keys [options arguments summary errors]}
-         (parse-command-args opts (:specs cmd) args)]
+         (parse-command-args options (:specs cmd) arguments)]
      (cond
        errors
        (fail (str/join \newline errors))
 
-       (and (empty? branch) (= "help" (first args)))
+       (and (empty? branch) (= "help" (first arguments)))
        (recur cmd branch
               (assoc options :help true)
-              (next args))
+              (next arguments))
 
        :else
        (let [branch (conj branch (:name cmd))
              usage (usage-str branch cmd summary)
-             opts ((or (:init cmd) identity) opts)]
-         (if-let [subcommand (first (filter #(= (first args) (:name %)) (:commands cmd)))]
-           (recur subcommand branch opts (next args))
-           (execute-action usage (:action cmd) opts args)))))))
+             options ((or (:init cmd) identity) options)]
+         (if-let [subcommand (first (filter #(= (first arguments) (:name %)) (:commands cmd)))]
+           (recur subcommand branch options (next arguments))
+           (execute-action usage (:action cmd) options arguments)))))))
