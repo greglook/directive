@@ -1,8 +1,22 @@
 Directive
 =========
 
+[![Build Status](https://travis-ci.org/greglook/directive.svg?branch=develop)](https://travis-ci.org/greglook/directive)
+[![Coverage Status](https://coveralls.io/repos/greglook/directive/badge.png?branch=develop)](https://coveralls.io/r/greglook/directive?branch=develop)
+
 A simple DSL for building command-line interfaces with trees of subcommands.
 This library wraps the `org.clojure/tools.cli` library for option parsing.
+
+## Installation
+
+Library releases are [published on Clojars](https://clojars.org/mvxcvi/directive).
+
+To use this version with Leiningen, add the following dependency to your project
+definition:
+
+```clojure
+[mvxcvi/directive "0.4.2"]
+```
 
 ## Usage
 

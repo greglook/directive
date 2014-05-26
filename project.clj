@@ -6,4 +6,9 @@
 
   :dependencies
   [[org.clojure/clojure "1.6.0"]
-   [org.clojure/tools.cli "0.3.1"]])
+   [org.clojure/tools.cli "0.3.1"]]
+
+  :profiles
+  {:coverage
+   {:plugins
+    [[lein-cloverage "1.0.2"]]}})
