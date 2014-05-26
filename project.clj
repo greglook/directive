@@ -4,6 +4,8 @@
   :license {:name "Public Domain"
             :url "http://unlicense.org/"}
 
+  :deploy-branches ["master"]
+
   :dependencies
   [[org.clojure/clojure "1.6.0"]
    [org.clojure/tools.cli "0.3.1"]]
