@@ -15,7 +15,7 @@ To use this version with Leiningen, add the following dependency to your project
 definition:
 
 ```clojure
-[mvxcvi/directive "0.4.2"]
+[mvxcvi/directive "0.5.0-SNAPSHOT"]
 ```
 
 ## Usage
