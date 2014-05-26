@@ -1,5 +1,6 @@
 (ns mvxcvi.directive
   (:require
+    [clojure.stacktrace :refer [print-cause-trace]]
     [clojure.string :as str]
     [clojure.tools.cli :as cli]))
 
@@ -7,10 +8,17 @@
 ;; UTILITY FUNCTIONS
 
 (defn fail
-  "Indicates a failure has occurred."
-  [msg]
+  "Throws an exception indicating a failure has occurred. This exception will
+  be caught and the message printed to stderr."
+  [& args]
+  (throw (ex-info (apply str args) {::failure true})))
+
+
+(defn print-err
+  "Prints the given arguments to stderr and returns false."
+  [& args]
   (binding [*out* *err*]
-    (println msg))
+    (println (apply str args)))
   false)
 
 
@@ -121,14 +129,18 @@
     (do (println usage) true)
 
     action
-    (action opts args)
+    (try
+      (action opts args)
+      (catch Exception e
+        (if (::failure (ex-data e))
+          (print-err (.getMessage e))
+          (print-cause-trace e))))
 
     :else
-    (fail
-      (str
-        (when (seq args)
-          (println "Unrecognized arguments:" (str/join " " args) "\n"))
-        usage))))
+    (print-err
+      (when (seq args)
+        (str "Unrecognized arguments:" (str/join " " args) "\n"))
+      usage)))
 
 
 (defn execute
@@ -147,7 +159,7 @@
          (parse-command-args options (:specs cmd) arguments)]
      (cond
        errors
-       (fail (str/join \newline errors))
+       (print-err (str/join \newline errors))
 
        (and (empty? branch) (= "help" (first arguments)))
        (recur cmd branch
