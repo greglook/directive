@@ -7,8 +7,8 @@
   :deploy-branches ["master"]
 
   :dependencies
-  [[org.clojure/clojure "1.6.0"]
-   [org.clojure/tools.cli "0.3.1"]]
+  [[org.clojure/clojure "1.8.0"]
+   [org.clojure/tools.cli "0.3.3"]]
 
   :profiles
   {:coverage
